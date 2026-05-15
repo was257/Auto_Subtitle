@@ -1,0 +1,7 @@
+/ffmpeg/
+/venv/
+/whisper/
+/target.mp4
+/target.srt
+/target2.srt
+/.idea/
