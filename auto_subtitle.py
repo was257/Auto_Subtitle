@@ -65,10 +65,34 @@ def generate_subtitles(video_path, language="zh"):
     segments, info = model.transcribe(
         video_path, 
         beam_size=5, 
-        language=language,        # 強制指定 'zh'，防止雜音導致幻聽成英文
-        initial_prompt="以下係廣東話/粵語對話，請用香港繁體字書寫口語紀錄。", # 💡 引導模型出繁體字與口語
+        language="zh",            
+        initial_prompt="以下係廣東話/粵語對話，請用香港繁體字書寫口語紀錄。", 
+        # 💡 核心調整 1：徹底釋放被封印的符號與語氣詞（最關鍵！）
+        suppress_tokens=None,  
+
+        # 💡 核心調整 2：關閉片頭空白抑制，防止隨口的開頭詞被吞
+        suppress_blank=False,  
+
+        # 💡 核心調整 3：降低保守度，讓 AI 更大膽地輸出「不確定」的聲音
+        temperature=0.0,       # 保持 0.0 確保準確，但配合下面的 threshold 降低門檻
+        # 💡 核心優化 1：開啟上下文聯動，但限制溫度，讓 AI 記得前面說過話
+        condition_on_previous_text=True,
+        prompt_reset_on_temperature=0.5, # 👈 超過這個溫度就重置提示，防止陷入復讀機
+        
+        # 💡 核心優化 2：放寬 VAD 的語音檢測，防止稍微小聲或有背景音的對白被當成靜音砍掉
         vad_filter=True,  
-        vad_parameters=dict(min_speech_duration_ms=250)
+        vad_parameters=dict(
+            min_speech_duration_ms=200,   # 降低門檻：只要聲音持續 0.2 秒就當作有人說話
+            max_speech_duration_s=10,     # 鐵腕限制：每句話最長 10 秒必須斷開，變成新的一行
+            speech_pad_ms=400             # 在說話前後各擴展 0.4 秒緩衝，防止字頭字尾被切斷
+        ),
+
+        # 💡 核心優化 3：降低幻聽閾值，防止 AI 因為太嚴格而丟棄它「不確定」的對白
+        no_speech_threshold=0.3,          # 只要靜音概率低於 40% 就強制識別，不漏字
+        log_prob_threshold=-0.8,          # 放寬對聲音質量的要求
+        
+        # 💡 核心優化 4：限制單行字數
+        max_new_tokens=50
     )
 
     print(f" Detected language: '{info.language}' (Probability: {info.language_probability:.2f})")
@@ -112,7 +136,7 @@ def generate_subtitles(video_path, language="zh"):
 
 if __name__ == "__main__":
     # 填入你要處理的 MP4 影片檔名或路徑
-    VIDEO_FILE = "target.mp4" 
+    VIDEO_FILE = "3EXJEtGqvU4.mp3" 
     
     # 執行字幕生成
     generate_subtitles(VIDEO_FILE, language="zh")

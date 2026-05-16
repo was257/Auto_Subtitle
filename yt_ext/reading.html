@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>📖 專注閱讀與編輯模式 - YouTube 字幕工具箱</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8f9fa;
+      color: #2c3e50;
+    }
+    .control-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #ffffff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 30px;
+      z-index: 100;
+    }
+    .logo {
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      padding: 8px 14px;
+      border: 1px solid #ddd;
+      background: #fff;
+      color: #333;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #f0f0f0; }
+    .btn-primary { background: #007bff; color: #fff; border: none; }
+    .btn-primary:hover { background: #0069d9; }
+    .btn-success { background: #28a745; color: #fff; border: none; }
+    .btn-success:hover { background: #218838; }
+    
+    .article-container {
+      max-width: 850px;
+      margin: 90px auto 40px auto;
+      padding: 40px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+      min-height: 60px;
+    }
+    /* 專注閱讀視窗 */
+    #article-content {
+      font-size: 18px;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    /* 原始碼編輯視窗：預設隱藏 */
+    #srt-editor {
+      display: none;
+      width: 100%;
+      height: 70vh;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 15px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      resize: vertical;
+      background: #fafafa;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="control-bar">
+    <div class="logo" id="reader-title">📖 專注閱讀模式</div>
+    
+    <!-- 按鈕控制群 -->
+    <div class="btn-group">
+      <!-- 模式切換按鈕 -->
+      <button id="btn-toggle-mode" class="btn" style="background: #6c757d; color:#fff; border:none;">✍️ 切換為編輯 SRT</button>
+      
+      <!-- 閱讀模式專用 -->
+      <button id="btn-zoom-out" class="btn">A-</button>
+      <button id="btn-zoom-in" class="btn">A+</button>
+      
+      <!-- 編輯模式專用：預設隱藏 -->
+      <button id="btn-save-plugin" class="btn btn-success" style="display: none;">💾 保存到插件</button>
+      <button id="btn-download-srt" class="btn btn-primary" style="display: none;">📥 下載 SRT</button>
+    </div>
+  </div>
+
+  <div class="article-container">
+    <!-- 1. 閱讀展現層 -->
+    <div id="article-content">正在加載洗淨後的文章內容...</div>
+    <!-- 2. 原始碼編輯層 -->
+    <textarea id="srt-editor"></textarea>
+  </div>
+
+  <script src="reading.js"></script>
+</body>
+</html>

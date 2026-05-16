@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 350px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    /* 頂層工具欄菜單 */
+    .navbar { display: flex; background: #202020; border-bottom: 3px solid #ff0000; }
+    .nav-item { flex: 1; text-align: center; padding: 10px 5px; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
+    .nav-item:hover { color: #fff; background: #333; }
+    .nav-item.active { color: #fff; background: #ff0000; }
+    
+    /* 子菜單面板 */
+    .panel { display: none; padding: 15px; box-sizing: border-box; height: 300px; overflow-y: auto; }
+    .panel.active { display: block; }
+    
+    /* 通用元件樣式 */
+    h3 { margin-top: 0; color: #333; font-size: 16px; border-left: 3px solid #ff0000; padding-left: 8px; }
+    .btn { background: #ff0000; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
+    .btn:hover { background: #cc0000; }
+    
+    /* 讀取字幕專用 */
+    #captions-output { width: 100%; height: 180px; margin-top: 10px; font-size: 12px; font-family: monospace; }
+    
+    /* 樣式設置專用 */
+    .setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; }
+    .setting-item input, .setting-item select { width: 100px; padding: 4px; }
+    
+    /* 本地外掛專用 */
+    .dropzone { border: 2px dashed #ccc; padding: 30px 10px; text-align: center; cursor: pointer; background: #fff; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- 頂層工具欄菜單 -->
+  <div class="navbar">
+    <div class="nav-item active" data-target="panel-read">讀取當前字幕</div>
+    <div class="nav-item" data-target="panel-style">設置字幕樣式</div>
+    <div class="nav-item" data-target="panel-upload">外掛本地字幕</div>
+  </div>
+<!-- 面板 1：讀取當前字幕 -->
+<div id="panel-read" class="panel active" style="position: relative; padding-bottom: 10px;">
+  <div id="matched-srt-status" style="position: absolute; top: 15px; right: 15px; font-size: 11px; color: #666;"></div>
+
+  <h3>當前影片字幕提取</h3>
+  <button id="btn-read-captions" class="btn" style="margin-bottom: 8px;">從 YouTube 提取字幕</button>
+  
+  <!-- 💥 縮小預覽框高度，避免撐開頁面導致滾動 -->
+  <textarea id="captions-output" style="height: 70px; min-height: 70px; margin-bottom: 8px; font-size: 12px;" placeholder="點擊上方按鈕提取網頁原生的自動字幕/人工字幕..." readonly></textarea>
+  
+  <!-- 底部操作按鈕群：緊跟在文字框下方 -->
+  <div id="action-buttons-container" style="display: none; gap: 10px;">
+    <button id="btn-focus-read" class="btn" style="background: #28a745; flex: 1; margin: 0;">📖 專注閱讀 (新分頁)</button>
+    <button id="btn-download-srt" class="btn" style="background: #007bff; flex: 1; margin: 0;">下載為 SRT</button>
+  </div>
+</div>
+
+<!-- 🔥 全新加入：專注閱讀全螢幕遮罩層 -->
+<div id="reading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 999; flex-direction: column; box-sizing: border-box;">
+  <!-- 頂部控制欄 -->
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; background: #f8f9fa;">
+    <button id="btn-close-reader" class="btn" style="margin: 0; padding: 5px 10px; background: #6c757d; font-size: 12px; width: auto;">✕ 關閉閱讀</button>
+    <div style="display: flex; gap: 5px;">
+      <button id="btn-zoom-out" class="btn" style="margin: 0; padding: 5px 10px; background: #e0e0e0; color: #333; font-size: 12px; width: auto;">A-</button>
+      <button id="btn-zoom-in" class="btn" style="margin: 0; padding: 5px 10px; background: #e0e0e0; color: #333; font-size: 12px; width: auto;">A+</button>
+    </div>
+  </div>
+  <!-- 文章內容主體 -->
+  <div id="reading-content" style="flex: 1; padding: 20px; overflow-y: auto; font-size: 16px; line-height: 1.8; color: #2c3e50; word-break: break-all; white-space: pre-wrap;">
+    <!-- 乾淨的字幕文字會被灌入到這裡 -->
+  </div>
+</div>
+
+  <!-- 面板 2：設置字幕樣式 -->
+  <div id="panel-style" class="panel">
+    <h3>自訂字幕外觀</h3>
+    <div class="setting-item">
+      <span>字體大小 (px):</span>
+      <input type="number" id="style-size" min="14" max="48" value="26">
+    </div>
+    <div class="setting-item">
+      <span>字體顏色:</span>
+      <input type="color" id="style-color" value="#ffffff">
+    </div>
+    <div class="setting-item">
+      <span>背景底色:</span>
+      <input type="color" id="style-bg" value="#000000">
+    </div>
+    <div class="setting-item">
+      <span>背景透明度 (%):</span>
+      <input type="range" id="style-bg-opacity" min="0" max="100" value="60">
+    </div>
+    <div class="setting-item">
+      <span>文字描邊:</span>
+      <select id="style-stroke">
+        <option value="none">無描邊</option>
+        <option value="1px 1px 2px #000">輕微黑色</option>
+        <option value="2px 2px 4px #000" selected>明顯黑色</option>
+        <option value="1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000">全四方描邊</option>
+      </select>
+    </div>
+    <button id="btn-save-style" class="btn">應用樣式</button>
+  </div>
+
+  <!-- 面板 3：外掛本地字幕 (原本功能移到這裡) -->
+  <div id="panel-upload" class="panel">
+    <h3>強力適配當前觀看影片</h3>
+    <div class="dropzone" id="dropzone">點擊或拖拽任意 SRT 檔案到此處<br><small style="color:#888;">(會自動強制綁定到當前影片)</small></div>
+    <input type="file" id="fileInput" accept=".srt" style="display: none;">
+    <div id="upload-status" style="margin-top:10px; font-size:12px; color:green; text-align:center;"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
