@@ -62,38 +62,24 @@ def generate_subtitles(video_path, language="zh"):
     print(f"🎙️ 正在分析影片音訊：{os.path.basename(video_path)}")
     print("⏳ 正在讀取完整影片進行分析，請稍候...")
     
+    initial_prompt="香港日常粵語口語對話轉錄，使用香港人最自然的講法，全部用繁體中文。必須保留大量香港口語詞和句尾助詞，例如：啦、喎、呀、呢、嘛、咧、喂、欸、哇塞、係呀、唔係呀、真係、即係、咁、咁樣、得啦、冇事、搞掂、勁、仆街、巴閉、抵死、仲有、而家、點解、乜鬼、ok啦、明白未、食咗未等等。絕對不要改成書面語或普通話風格，保持最口語、最香港的感覺，包括重複和語氣。"
+
     segments, info = model.transcribe(
-        video_path, 
-        beam_size=5, 
-        language="zh",            
-        initial_prompt="以下係廣東話/粵語對話，請用香港繁體字書寫口語紀錄。", 
-        # 💡 核心調整 1：徹底釋放被封印的符號與語氣詞（最關鍵！）
-        suppress_tokens=None,  
-
-        # 💡 核心調整 2：關閉片頭空白抑制，防止隨口的開頭詞被吞
-        suppress_blank=False,  
-
-        # 💡 核心調整 3：降低保守度，讓 AI 更大膽地輸出「不確定」的聲音
-        temperature=0.0,       # 保持 0.0 確保準確，但配合下面的 threshold 降低門檻
-        # 💡 核心優化 1：開啟上下文聯動，但限制溫度，讓 AI 記得前面說過話
-        condition_on_previous_text=True,
-        prompt_reset_on_temperature=0.5, # 👈 超過這個溫度就重置提示，防止陷入復讀機
-        
-        # 💡 核心優化 2：放寬 VAD 的語音檢測，防止稍微小聲或有背景音的對白被當成靜音砍掉
-        vad_filter=True,  
+        video_path,
+        language="zh",          # 或 "yue" 如果模型支援
+        beam_size=5,
+        initial_prompt=initial_prompt,   # 放上面那段
+        hotwords="啦 喎 呀 呢 嘛 咧 係呀 唔係 真係 即係 得啦 搞掂 勁 跟住",  # 可再增加
+        temperature=0.0,
+        no_repeat_ngram_size=3,      # 防止重複 3-gram
+        repetition_penalty=1.1,      # >1 會懲罰重複（1.05~1.2 之間試）
+        vad_filter=True,
         vad_parameters=dict(
             min_speech_duration_ms=200,   # 降低門檻：只要聲音持續 0.2 秒就當作有人說話
             max_speech_duration_s=10,     # 鐵腕限制：每句話最長 10 秒必須斷開，變成新的一行
-            speech_pad_ms=400             # 在說話前後各擴展 0.4 秒緩衝，防止字頭字尾被切斷
-        ),
-
-        # 💡 核心優化 3：降低幻聽閾值，防止 AI 因為太嚴格而丟棄它「不確定」的對白
-        no_speech_threshold=0.3,          # 只要靜音概率低於 40% 就強制識別，不漏字
-        log_prob_threshold=-0.8,          # 放寬對聲音質量的要求
-        
-        # 💡 核心優化 4：限制單行字數
-        max_new_tokens=50
+        )
     )
+
 
     print(f" Detected language: '{info.language}' (Probability: {info.language_probability:.2f})")
     print(f" Total audio duration: {info.duration:.2f} seconds")
@@ -136,7 +122,7 @@ def generate_subtitles(video_path, language="zh"):
 
 if __name__ == "__main__":
     # 填入你要處理的 MP4 影片檔名或路徑
-    VIDEO_FILE = "3EXJEtGqvU4.mp3" 
+    VIDEO_FILE = "cnDgVK6abM0.mp3" 
     
     # 執行字幕生成
     generate_subtitles(VIDEO_FILE, language="zh")

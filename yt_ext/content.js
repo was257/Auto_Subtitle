@@ -62,7 +62,6 @@ function renderSubtitles(subtitles) {
     if (!subContainer) {
         subContainer = document.createElement("div");
         subContainer.id = "toolbox-subtitle-layer";
-        // 基本常規佈局定位
         subContainer.style.position = "absolute";
         subContainer.style.bottom = "80px"; 
         subContainer.style.width = "100%";
@@ -70,12 +69,12 @@ function renderSubtitles(subtitles) {
         subContainer.style.zIndex = "9999";
         subContainer.style.pointerEvents = "none";
         
-        // 內層真正的文字 Span，方便精準控制底色範圍
         const subTextSpan = document.createElement("span");
         subTextSpan.id = "toolbox-subtitle-span";
         subTextSpan.style.padding = "4px 12px";
         subTextSpan.style.borderRadius = "4px";
         subTextSpan.style.lineHeight = "1.5";
+        subTextSpan.style.whiteSpace = "pre-line"; // 💥 確保 \n 可以正常換行分層
         
         subContainer.appendChild(subTextSpan);
         document.querySelector(".html5-video-player")?.appendChild(subContainer);
@@ -83,7 +82,7 @@ function renderSubtitles(subtitles) {
 
     const textSpan = document.getElementById("toolbox-subtitle-span");
 
-    // 核心優化：動態更新樣式函數
+    // 動態更新樣式
     function applyDynamicStyles() {
         chrome.storage.local.get(["subtitle_style"], (res) => {
             const styles = res.subtitle_style || {
@@ -93,7 +92,6 @@ function renderSubtitles(subtitles) {
                 opacity: 0.6,
                 textShadow: "2px 2px 4px #000"
             };
-            
             textSpan.style.fontSize = styles.fontSize;
             textSpan.style.color = styles.color;
             textSpan.style.textShadow = styles.textShadow;
@@ -101,41 +99,84 @@ function renderSubtitles(subtitles) {
         });
     }
 
-    // 初始化調用一次樣式
     applyDynamicStyles();
 
-    // 監聽來自 Popup 點擊「應用樣式」時的即時儲存變更事件
-    chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (changes.subtitle_style) {
-            applyDynamicStyles();
-        }
-    });
-    // 先把全域變數對齊傳進來的數據（確保任何時候計時器讀到的都是最新版）
+    // -------------------------------------------------------------
+    // ⏳ 雙層滾動與最小時間核心變數
+    // -------------------------------------------------------------
+    let lastDisplayedSub = null;   // 記錄上一句顯示嘅完整字幕物件 (包含 start, end, text)
+    let lastDisplayTime = 0;       // 記錄上一句字幕實際喺畫面上「開始掛載」嘅影片播放秒數
+    const MIN_DURATION = 2;      // ⏳ 每行字幕最少強制顯示 1.0 秒 (可自行調校)
+
+    // 對齊全域變數
     currentSubtitles = subtitles;
 
-    // 檢查是不是已經綁定過計時器了，如果沒綁定過才綁定，防止無限疊加監聽器
     if (!videoElement.dataset.hasToolboxListener) {
         videoElement.addEventListener("timeupdate", () => {
             const currentTime = videoElement.currentTime;
             
-            // 💥 這裡改成讀取全域的 currentSubtitles，這樣只要上面變數一換，這裡會一微秒內直接抓到新字幕！
-            const currentSub = currentSubtitles.find(sub => currentTime >= sub.start && currentTime <= sub.end);
+            // 1. 🔍 尋找「當前正規時間」應該播放嘅主字幕
+            let currentSub = currentSubtitles.find(sub => currentTime >= sub.start && currentTime <= sub.end);
             
+            // 2. ⏳ 最小顯示時間補償機制：
+            // 如果當前時間點已經冇字幕，但上一句字幕顯示嘅時間仲未夠 MIN_DURATION 秒
+            if (!currentSub && lastDisplayedSub && (currentTime - lastDisplayTime) < MIN_DURATION) {
+                // 強制將上一句當作當前主字幕延續壽命
+                currentSub = lastDisplayedSub;
+            }
+
+            // 3. 💥 雙層字幕撞車判定機制：
+            let finalOutputText = "";
+
             if (currentSub) {
-                textSpan.innerText = currentSub.text;
+                // 如果換咗新一句字幕，更新計時起點
+                if (!lastDisplayedSub || currentSub.text !== lastDisplayedSub.text) {
+                    lastDisplayTime = currentTime;
+                    lastDisplayedSub = currentSub;
+                }
+
+                finalOutputText = currentSub.text;
+
+                // 🔍 關鍵：去尋找「緊絀依附在後」嘅下一句字幕
+                // 條件：搵出所有開始時間大過當前主字幕，且排在後面最接近嘅那一句
+                const nextSub = currentSubtitles.find(sub => sub.start > currentSub.start);
+                
+                if (nextSub) {
+                    // 判定下一句係咪「太接近」？
+                    // 定義接近：下一句字幕嘅官方開始時間，早過（主字幕實際起點 + 最小顯示時間）
+                    // 白話文：主字幕還沒被「強行顯示完畢」，下一句就已經急不及待要出來了
+                    const currentSubExpectedEnd = lastDisplayTime + MIN_DURATION;
+                    
+                    if (nextSub.start <= currentSubExpectedEnd || currentTime >= nextSub.start) {
+                        // 💥 滿足條件！此時 currentTime 可能已經踩入下一句，或者下一句即將到來
+                        // 如果 currentTime 已經踩入下一句，就將下一句當作主體，上一句疊在上面；
+                        // 如果未踩入，就將下一句提早調用，疊在下面！
+                        if (currentTime >= nextSub.start) {
+                            // 視角轉換：當前其實已經播緊下一句，所以舊字幕（currentSub）在上面，新字幕（nextSub）在下面
+                            finalOutputText = `${currentSub.text}\n${nextSub.text}`;
+                        } else {
+                            // 當前仲播緊舊字幕，但因為太接近，提早把新字幕（nextSub）拉出來顯示在下面
+                            finalOutputText = `${currentSub.text}\n${nextSub.text}`;
+                        }
+                    }
+                }
+            }
+
+            // 4. 🖨️ 真正印出畫面
+            if (finalOutputText) {
+                textSpan.innerText = finalOutputText;
                 subContainer.style.display = "block";
             } else {
                 subContainer.style.display = "none";
                 textSpan.innerText = "";
+                lastDisplayedSub = null;
             }
         });
         
-        // 做個標記，代表這個 video 已經掛過計時器雷達了
         videoElement.dataset.hasToolboxListener = "true";
-        console.log("[工具箱 Content.js] ⏱️ 影片時間軸監聽器首次綁定成功！");
+        console.log("[工具箱 Content.js] ⏱️ 智能前後句時序雙層字幕監聽器更新成功！");
     }
 }
-
 
 
 // 監聽 YouTube SPA 影片切换

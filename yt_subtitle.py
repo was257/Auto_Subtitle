@@ -17,7 +17,7 @@ def download_and_subtitle(youtube_url):
 
     # 定義基於 videoId 的音訊與字幕檔名
     # 這裡使用 m4a 格式（本質上就是 mp4 容器的純音訊，Whisper 完美支援）
-    target_audio = f"{video_id}.m4a"
+    target_audio = f"{video_id}.mp3"
     target_srt = f"{video_id}.srt"
     
     # 2. 配置 yt-dlp：下載音訊並轉碼
@@ -54,5 +54,5 @@ def download_and_subtitle(youtube_url):
 
 if __name__ == "__main__":
     # 測試一條你想看的 YouTube 網址
-    URL = "https://www.youtube.com/watch?v=3EXJEtGqvU4&t=10s" 
+    URL = "https://www.youtube.com/watch?v=cnDgVK6abM0" 
     download_and_subtitle(URL)
