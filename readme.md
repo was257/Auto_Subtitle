@@ -44,8 +44,10 @@ run.bat
 /or/
 python auto_subtitle.py
 
+---
 
 
-## 🤝
+
+🤝
 Gemini 3 flash  / AI Collaborator
 > **"Great tools are born from the collision of human creativity and AI execution."**
