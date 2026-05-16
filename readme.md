@@ -4,8 +4,6 @@
 
 當你在閱讀分頁中校正錯字並點擊保存後，YouTube 播放網頁的客製化字幕將**一微秒內無縫熱更新**，完全不需要重新整理網頁！
 
-GEMINI Supports Coding
-
 ---
 
 ## ✨ 核心特色
@@ -42,4 +40,12 @@ GEMINI Supports Coding
 
 ### 2. 啟動 Python 後台（如適用）
 ```bash
+run.bat
+/or/
 python auto_subtitle.py
+
+
+
+## 🤝
+Gemini 3 flash  / AI Collaborator
+> **"Great tools are born from the collision of human creativity and AI execution."**
