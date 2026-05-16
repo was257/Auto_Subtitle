@@ -218,3 +218,69 @@ if(dropzone) {
         reader.readAsText(file);
     });
 }
+
+// =============================================================
+// --- 功能 2：設置字幕樣式 (儲存、即時套用與初始化回填) ---
+// =============================================================
+document.addEventListener("DOMContentLoaded", () => {
+    // 🔔 步驟一：一打開 Popup，立刻去 storage 拿之前存過的值並回填到畫面上
+    chrome.storage.local.get(["subtitle_style"], (res) => {
+        if (res.subtitle_style) {
+            const styles = res.subtitle_style;
+            console.log("[工具箱 Popup.js] 📥 偵測到歷史樣式，開始回填畫面...", styles);
+
+            // 1. 還原字體大小 (去掉 'px' 單位，以便填回純數字 input 裡面)
+            if (styles.fontSize) {
+                const pureSize = styles.fontSize.replace("px", "");
+                const sizeInput = document.getElementById('style-size');
+                if (sizeInput) sizeInput.value = pureSize;
+            }
+
+            // 2. 還原文字顏色
+            const colorInput = document.getElementById('style-color');
+            if (colorInput && styles.color) colorInput.value = styles.color;
+
+            // 3. 還原背景顏色
+            const bgInput = document.getElementById('style-bg');
+            if (bgInput && styles.backgroundColor) bgInput.value = styles.backgroundColor;
+
+            // 4. 還原背景透明度 (從 0~1 的浮點數 還原回 0~100 的百分比數字)
+            const opacityInput = document.getElementById('style-bg-opacity');
+            if (opacityInput && styles.opacity !== undefined) {
+                opacityInput.value = Math.round(styles.opacity * 100);
+            }
+
+            // 5. 還原文字描邊/陰影
+            const strokeInput = document.getElementById('style-stroke');
+            if (strokeInput && styles.textShadow) strokeInput.value = styles.textShadow;
+        } else {
+            console.log("[工具箱 Popup.js] 📭 尚未有歷史樣式紀錄，使用 HTML 預設值。");
+        }
+    });
+
+    // 🔔 步驟二：原本的點擊保存事件 (完美與最新 content.js 數據結構對齊)
+    const saveStyleBtn = document.getElementById('btn-save-style');
+    if (saveStyleBtn) {
+        saveStyleBtn.addEventListener('click', () => {
+            const sizeValue = document.getElementById('style-size').value || "26";
+            const colorValue = document.getElementById('style-color').value || "#ffffff";
+            const bgValue = document.getElementById('style-bg').value || "#000000";
+            const opacityValue = document.getElementById('style-bg-opacity').value || "60";
+            const strokeValue = document.getElementById('style-stroke').value || "2px 2px 4px #000";
+
+            const styleSettings = {
+                fontSize: sizeValue + 'px',
+                color: colorValue,
+                backgroundColor: bgValue,
+                opacity: parseFloat(opacityValue) / 100,
+                textShadow: strokeValue
+            };
+
+            // 存入本地，Content Script 會自動監聽並即時更新
+            chrome.storage.local.set({ "subtitle_style": styleSettings }, () => {
+                console.log("[工具箱 Popup.js] 💾 樣式已保存:", styleSettings);
+                alert("樣式已成功保存並應用！");
+            });
+        });
+    }
+});
