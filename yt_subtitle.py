@@ -3,14 +3,38 @@ import sys
 from yt_dlp import YoutubeDL
 from auto_subtitle import generate_subtitles # 💡 直接復用你剛才寫好的完美版方法
 
+def media_read(url):
+    ydl_opts = {
+        'quiet': True,
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        try:
+            info_dict = ydl.extract_info(url ,download=False)
+            video_id = info_dict.get('id', 'unknown_id')
+            print(video_id)
+        except Exception as e:
+            print(f"❌ 無法解析影片資訊: {e}")
+            return
+
 def download_and_subtitle(youtube_url):
     print(f"🔗 正在分析 YouTube 鏈接: {youtube_url}")
+
+    extract_opts = {
+        'quiet': True,
+        'noplaylist': True, 
+    }
     
     # 1. 先提取影片資訊以獲取 videoId
-    with YoutubeDL({'quiet': True}) as ydl:
+    with YoutubeDL(extract_opts) as ydl:
         try:
             info_dict = ydl.extract_info(youtube_url, download=False)
-            video_id = info_dict.get('id', 'unknown_id')
+            if 'entries' in info_dict:
+                # 拿取清單中的第一條影片
+                video_info = info_dict['entries'][0]
+                video_id = video_info.get('id', 'unknown_id')
+            else:
+                # 普通的單一影片網址
+                video_id = info_dict.get('id', 'unknown_id')
         except Exception as e:
             print(f"❌ 無法解析影片資訊: {e}")
             return
@@ -24,6 +48,7 @@ def download_and_subtitle(youtube_url):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{video_id}.%(ext)s", 
+        'noplaylist': True,  # 👈 確保下載時不會把整條 list 擸埋落嚟
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',  # 👈 改成 wav（或 mp3）
@@ -38,21 +63,19 @@ def download_and_subtitle(youtube_url):
     if os.path.exists(target_audio):
         print(f"🎉 音訊下載成功 ({target_audio})！現在交給本地模型處理...")
         
-        # 💡 呼叫你的轉錄方法
-        # 注意：請確保你的 generate_subtitles 輸出的檔名能對應
-        # 如果你的 generate_subtitles 預設產生同名的 .srt 檔（例如輸入 a.m4a 輸出 a.srt）：
+        # 💡 呼叫你的轉錄方法 
         generate_subtitles(target_audio, language="zh")
-        
-        # 如果你的 generate_subtitles 固化了輸出檔名為 "yt_download_audio.srt"，
-        # 則需要取消註釋下面這兩行來手動改名：
-        # if os.path.exists("yt_download_audio.srt"):
-        #     os.rename("yt_download_audio.srt", target_srt)
+         
             
         print(f"✅ 搞掂！本地已生成 {target_srt} 字幕檔。")
     else:
         print("❌ 下載失敗，找不到音訊檔案。")
 
+
 if __name__ == "__main__":
-    # 測試一條你想看的 YouTube 網址
-    URL = "https://www.youtube.com/watch?v=cnDgVK6abM0" 
+    # 測試一條你想看的 YouTube  網址
+    #URL = "https://www.rthk.hk/radio/radio5/programme/culture_5000years/episode/1088741" 
+    #URL = "https://www.rthk.hk/chiculture/fivethousandyears/comics/comics_legend_004.htm"
+    URL = "https://www.youtube.com/watch?v=E5LAGEj-6AA&list=PLjYsL-4iEERWhsuRC8Ti1_31Jw2qOeIJF"
+    #media_read(URL)
     download_and_subtitle(URL)

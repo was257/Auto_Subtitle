@@ -62,7 +62,7 @@ def generate_subtitles(video_path, language="zh"):
     print(f"🎙️ 正在分析影片音訊：{os.path.basename(video_path)}")
     print("⏳ 正在讀取完整影片進行分析，請稍候...")
     
-    initial_prompt="香港日常粵語口語對話轉錄，使用香港人最自然的講法，全部用繁體中文。必須保留大量香港口語詞和句尾助詞，例如：啦、喎、呀、呢、嘛、咧、喂、欸、哇塞、係呀、唔係呀、真係、即係、咁、咁樣、得啦、冇事、搞掂、勁、仆街、巴閉、抵死、仲有、而家、點解、乜鬼、ok啦、明白未、食咗未等等。絕對不要改成書面語或普通話風格，保持最口語、最香港的感覺，包括重複和語氣。"
+    initial_prompt="香港日常口語對話轉錄，可能包含粵語、普通話和英語，保留各種語言，保留香港口語詞和句尾助詞，例如：啦、喎、呀、呢、嘛、咧、喂、欸、哇塞、係呀、唔係呀、真係、即係、咁、咁樣、得啦、冇事、搞掂、勁、仆街、巴閉、抵死、仲有、而家、點解、乜鬼、ok啦、明白未、食咗未等等。絕對不要改成書面語或普通話風格，保持最口語、最香港的感覺，包括重複和語氣。"
 
     segments, info = model.transcribe(
         video_path,
@@ -72,12 +72,18 @@ def generate_subtitles(video_path, language="zh"):
         hotwords="啦 喎 呀 呢 嘛 咧 係呀 唔係 真係 即係 得啦 搞掂 勁 跟住",  # 可再增加
         temperature=0.0,
         no_repeat_ngram_size=3,      # 防止重複 3-gram
-        repetition_penalty=1.1,      # >1 會懲罰重複（1.05~1.2 之間試）
+        repetition_penalty=1.2,      # >1 會懲罰重複（1.05~1.2 之間試）
+        condition_on_previous_text=False,
         vad_filter=True,
-        vad_parameters=dict(
-            min_speech_duration_ms=200,   # 降低門檻：只要聲音持續 0.2 秒就當作有人說話
-            max_speech_duration_s=10,     # 鐵腕限制：每句話最長 10 秒必須斷開，變成新的一行
-        )
+        vad_parameters=dict( 
+            min_speech_duration_ms=150,   # 降低門檻：只要聲音持續 0.2 秒就當作有人說話
+            max_speech_duration_s=5,     # 鐵腕限制：每句話最長 10 秒必須斷開，變成新的一行
+            speech_pad_ms=500,
+        ),
+        no_speech_threshold=0.2,
+        log_prob_threshold=-1.2,
+        suppress_tokens=None,  
+        suppress_blank=False,
     )
 
 
@@ -122,7 +128,8 @@ def generate_subtitles(video_path, language="zh"):
 
 if __name__ == "__main__":
     # 填入你要處理的 MP4 影片檔名或路徑
-    VIDEO_FILE = "cnDgVK6abM0.mp3" 
+    #VIDEO_FILE = "test_first60s.mp3" 
+    VIDEO_FILE = "講東講西-望族系列之周壽臣家族.mp3" 
     
     # 執行字幕生成
     generate_subtitles(VIDEO_FILE, language="zh")

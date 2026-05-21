@@ -4,7 +4,7 @@
 let currentSubtitles = [];     // 儲存當前最新的字幕陣列
 let lastDisplayedSub = null;   // 記錄上一句顯示的字幕物件
 let lastDisplayTime = 0;       // 記錄上一句字幕開始顯示的影片秒數
-const MIN_DURATION = 1.0;      // ⏳ 每行字幕最少強制顯示 1.0 秒
+const MIN_DURATION = 2.5;      // ⏳ 每行字幕最少強制顯示 1.0 秒
 
 // =============================================================
 // 2. 核心：建立與獲取字幕 HTML 容器 (DOM)
@@ -218,18 +218,28 @@ function init() {
     if (videoId) {
         console.log(`[工具箱 Content.js] 🚀 偵測到影片分頁 ${videoId}，開始初始化抓取快取...`);
         
-        chrome.storage.local.get([`${videoId}_native`], (res) => {
-            const cachedSrt = res[`${videoId}_native`];
-            if (cachedSrt) {
-                console.log("[工具箱 Content.js] 🎉 成功找到快取純文字 SRT，開始安全解析為陣列...");
+        // 讀取你不帶 _native 的通用儲存 Key
+        chrome.storage.local.get([videoId], (res) => {
+            const cachedData = res[videoId];
+            
+            if (cachedData) {
+                console.log("[工具箱 Content.js] 🎉 成功讀取到快取字幕數據！檢查數據格式中...");
                 
-                // 💥 關鍵修復：先將字串轉為陣列，再丟入渲染引擎
-                const parsedArray = parseSrtContent(cachedSrt);
-                
-                console.log("[工具箱 Content.js] 解析完成，總計條數:", parsedArray.length);
-                renderSubtitles(parsedArray);
+                // 💥 核心智能判定：
+                if (typeof cachedData === 'string') {
+                    // 情況 A：如果是純文字字串 (例如未經過處理的原生 SRT 文本)
+                    console.log("[工具箱 Content.js] 🔤 檢測到為【純文字字串】，啟動 parseSrtContent 解析器...");
+                    const parsedArray = parseSrtContent(cachedData);
+                    renderSubtitles(parsedArray);
+                } else if (Array.isArray(cachedData)) {
+                    // 情況 B：如果是已經解析好的物件陣列 (例如由閱讀頁面/上傳模組處理過的安全對象)
+                    console.log("[工具箱 Content.js] 📦 檢測到為【結構化陣列物件】，直接跳過解析，注入渲染引擎！", cachedData.length, "條");
+                    renderSubtitles(cachedData);
+                } else {
+                    console.error("[工具箱 Content.js] ❌ 未知的字幕數據格式：", typeof cachedData);
+                }
             } else {
-                console.log("[工具箱 Content.js] 📭 當前影片尚未快取字幕數據。");
+                console.log(`[工具箱 Content.js] 📭 當前影片 ${videoId} 尚未快取任何字幕數據。`);
             }
         });
     }
